@@ -116,7 +116,11 @@ def extract_and_predict(video_path, model, face_model):
                 face = frame[y1:y2, x1:x2]
 
                 if face.size != 0:
-                    face_tensor = transform(face).unsqueeze(0).to(device)
+                    # cv2 decodes in BGR order, but the model was
+                    # trained on RGB face crops.
+                    rgb = cv2.cvtColor(face, cv2.COLOR_BGR2RGB)
+
+                    face_tensor = transform(rgb).unsqueeze(0).to(device)
 
                     with torch.no_grad():
                         outputs = model(face_tensor)

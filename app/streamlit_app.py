@@ -1,241 +1,147 @@
-import streamlit as st
-from pathlib import Path
-import tempfile
-import sys
-import cv2
-import torch
-import torch.nn.functional as F
-from torchvision import transforms
-from ultralytics import YOLO
-from collections import Counter
+"""Multimodal Deepfake Detection - main analysis page.
 
-ROOT = Path(__file__).resolve().parent.parent
-if str(ROOT) not in sys.path:
-    sys.path.append(str(ROOT))
+Run with::
 
-from models.video_model import DeepfakeResNet18
+    streamlit run app/streamlit_app.py
 
-# ---------------------------
-# Config
-# ---------------------------
-MODEL_PATH = ROOT / "saved_models" / "social_media_detector.pth"
-YOLO_WEIGHTS = ROOT / "weights" / "yolov8n-face.pt"
-FRAME_SKIP = 10
-MAX_FRAMES_TO_CHECK = 60
-
-# This MUST match the printed "Class to index mapping" from training/train_video.py
-# ImageFolder sorts class folder names alphabetically -- do not reorder by hand.
-IDX_TO_CLASS = {
-    0: "ai_video",
-    1: "audio_video_fake",
-    2: "edited",
-    3: "faceswap",
-    4: "real",
-    5: "voiceclone",
-}
-
-CLASS_DISPLAY = {
-    "real": "REAL",
-    "ai_video": "AI_VIDEO",
-    "faceswap": "FACESWAP",
-    "edited": "EDITED",
-    "voiceclone": "VOICECLONE",
-    "audio_video_fake": "AUDIO_VIDEO_FAKE",
-}
-
-EVIDENCE_MAP = {
-    "real": {
-        "visual": ["No visual manipulation detected"],
-        "audio": ["Audio appears authentic"],
-        "risk": "LOW",
-    },
-    "ai_video": {
-        "visual": ["Face boundary inconsistency", "Temporal flicker detected", "Compression artifact mismatch"],
-        "audio": ["No suspicious audio detected"],
-        "risk": "HIGH",
-    },
-    "faceswap": {
-        "visual": ["Face blending seam detected", "Identity mismatch across frames", "Unnatural face-background boundary"],
-        "audio": ["No suspicious audio detected"],
-        "risk": "HIGH",
-    },
-    "edited": {
-        "visual": ["Localized facial region manipulation", "Expression-motion inconsistency", "Neural texture artifacts"],
-        "audio": ["No suspicious audio detected"],
-        "risk": "MEDIUM",
-    },
-    "voiceclone": {
-        "visual": ["No visual manipulation detected"],
-        "audio": ["Synthetic speech pattern detected", "Voice-cloning artifacts in spectral features"],
-        "risk": "HIGH",
-    },
-    "audio_video_fake": {
-        "visual": ["Face boundary inconsistency", "Temporal flicker detected"],
-        "audio": ["Synthetic speech pattern detected", "Audio-visual sync anomaly"],
-        "risk": "HIGH",
-    },
-}
-
-transform = transforms.Compose([
-    transforms.ToPILImage(),
-    transforms.Resize((224, 224)),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-])
-
-
-@st.cache_resource
-def load_models():
-    model = DeepfakeResNet18(num_classes=6)
-    model.load_state_dict(torch.load(str(MODEL_PATH), map_location="cpu"))
-    model.eval()
-    face_model = YOLO(str(YOLO_WEIGHTS))
-    return model, face_model
-
-
-def analyze_video(video_path, model, face_model):
-    cap = cv2.VideoCapture(str(video_path))
-    if not cap.isOpened():
-        return None, None
-
-    predictions = []
-    confidences = []
-
-    frame_idx = 0
-    checked_frames = 0
-
-    while checked_frames < MAX_FRAMES_TO_CHECK:
-        ret, frame = cap.read()
-        if not ret:
-            break
-
-        if frame_idx % FRAME_SKIP == 0:
-            results = face_model(frame, verbose=False)
-
-            if len(results[0].boxes) > 0:
-                x1, y1, x2, y2 = map(int, results[0].boxes[0].xyxy[0])
-                face = frame[y1:y2, x1:x2]
-
-                if face.size != 0:
-                    face_tensor = transform(face).unsqueeze(0)
-
-                    with torch.no_grad():
-                        outputs = model(face_tensor)
-                        probs = F.softmax(outputs, dim=1)
-                        conf, pred_idx = torch.max(probs, dim=1)
-
-                    predictions.append(pred_idx.item())
-                    confidences.append(conf.item())
-                    checked_frames += 1
-
-        frame_idx += 1
-
-    cap.release()
-    return predictions, confidences
-
-
-# ---------------------------
-# Streamlit UI
-# ---------------------------
-st.set_page_config(
-    page_title="Multimodal Deepfake Detection",
-    layout="centered"
-)
-
-st.title("🎥 Multimodal Deepfake Detection")
-st.write("Upload a social-media video to verify whether it is authentic or manipulated.")
-
-uploaded_file = st.file_uploader("Upload Video", type=["mp4", "avi", "mov"])
-
-if uploaded_file is not None:
-    temp_path = Path(tempfile.gettempdir()) / uploaded_file.name
-    with open(temp_path, "wb") as f:
-        f.write(uploaded_file.read())
-
-    st.subheader("📹 Uploaded Video")
-    st.video(str(temp_path))
-
-    if st.button("🔍 Analyze Video"):
-        with st.spinner("Loading model and analyzing video..."):
-            model, face_model = load_models()
-            predictions, confidences = analyze_video(temp_path, model, face_model)
-
-        if predictions is None:
-            st.error("Could not open the uploaded video file.")
-            st.stop()
-
-        if len(predictions) == 0:
-            st.error("No face detected in the sampled frames. Cannot analyze this video.")
-            st.stop()
-
-        pred_labels = [IDX_TO_CLASS[p] for p in predictions]
-        label_counts = Counter(pred_labels)
-        final_label, vote_count = label_counts.most_common(1)[0]
-
-        matching_confidences = [c for lbl, c in zip(pred_labels, confidences) if lbl == final_label]
-        avg_confidence = round(sum(matching_confidences) / len(matching_confidences) * 100, 2)
-
-        decision = "REAL" if final_label == "real" else "FAKE"
-        category = CLASS_DISPLAY[final_label]
-        evidence = EVIDENCE_MAP[final_label]
-
-        st.subheader("📋 Forensic Analysis Result")
-
-        if decision == "REAL":
-            st.success(f"FINAL DECISION: {decision}")
-        else:
-            st.error(f"FINAL DECISION: {decision}")
-
-        st.write(f"**CATEGORY:** {category}")
-        st.write(f"**CONFIDENCE:** {avg_confidence}%")
-        st.write(f"**RISK LEVEL:** {evidence['risk']}")
-        st.write(f"**Frames Analyzed:** {len(predictions)}")
-
-        st.subheader("🗳️ Frame Vote Breakdown")
-        for lbl, count in label_counts.most_common():
-            st.write(f"- {CLASS_DISPLAY[lbl]}: {count}/{len(predictions)} frames")
-
-        st.subheader("🖼️ Visual Evidence")
-        for item in evidence["visual"]:
-            st.write(f"- {item}")
-
-        st.subheader("🔊 Audio Evidence")
-        for item in evidence["audio"]:
-            st.write(f"- {item}")
-
-        vote_lines = "\n".join(
-            f"- {CLASS_DISPLAY[lbl]}: {count}/{len(predictions)} frames"
-            for lbl, count in label_counts.most_common()
-        )
-
-        report = f"""
-========================================
-SOCIAL MEDIA FORENSIC REPORT
-========================================
-
-Video Name      : {uploaded_file.name}
-Frames Analyzed : {len(predictions)}
-
-FINAL DECISION  : {decision}
-CATEGORY        : {category}
-CONFIDENCE      : {avg_confidence}%
-RISK LEVEL      : {evidence['risk']}
-
-FRAME VOTE BREAKDOWN
-{vote_lines}
-
-VISUAL EVIDENCE
-{chr(10).join('- ' + v for v in evidence['visual'])}
-
-AUDIO EVIDENCE
-{chr(10).join('- ' + a for a in evidence['audio'])}
-
-========================================
+The heavy lifting lives in ``app.core`` (Streamlit-free) and the presentation
+helpers live in ``app.ui``, so this file is only layout and orchestration.
 """
 
-        st.download_button(
-            label="⬇️ Download Forensic Report",
-            data=report,
-            file_name="forensic_report.txt",
-            mime="text/plain"
+from __future__ import annotations
+
+import shutil
+import sys
+import tempfile
+from pathlib import Path
+
+# ---------------------------------------------------------------------------
+# Make the project root importable no matter how Streamlit was launched.
+# ---------------------------------------------------------------------------
+_PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
+import streamlit as st  # noqa: E402
+
+st.set_page_config(
+    page_title="Multimodal Deepfake Detection",
+    page_icon="",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+from app.core.analyze import analyze_video  # noqa: E402
+from app.core.config import (  # noqa: E402
+    SUPPORTED_VIDEO_EXTENSIONS,
+    VIDEO_FRAME_COUNT,
+)
+from app.ui import inject_theme  # noqa: E402
+from app.ui.components import render_result  # noqa: E402
+from app.ui.sidebar import render_sidebar  # noqa: E402
+from app.ui.state import get_models, models_ready  # noqa: E402
+from app.ui.theme import kpi  # noqa: E402
+
+inject_theme()
+
+
+# ============================================================
+# PAGE
+# ============================================================
+render_sidebar("Analyze")
+
+st.markdown(
+    '<div class="df-hero">'
+    "<h1>Multimodal Deepfake Detection</h1>"
+    "<p>Independent visual + audio forensics on a single video, "
+    "combined into one evidence-backed verdict.</p>"
+    "</div>",
+    unsafe_allow_html=True,
+)
+
+uploaded = st.file_uploader(
+    "Upload a video to analyze",
+    type=list(SUPPORTED_VIDEO_EXTENSIONS),
+    help="mp4, mov, avi or mkv - the file is processed in memory and never stored.",
+)
+
+if uploaded is None:
+    st.info(
+        " Upload a video above to get started, or open **Batch Analysis**, "
+        "**Model Metrics** or **About** from the sidebar."
+    )
+    col1, col2, col3 = st.columns(3)
+    col1.markdown(kpi("Video model", "ResNet18", "face-cropped 10-frame sampling"), unsafe_allow_html=True)
+    col2.markdown(kpi("Audio model", "Wav2Vec2", "4 s windows, 50% overlap"), unsafe_allow_html=True)
+    col3.markdown(kpi("Fusion", "Independent", "no weighted blend", "warning"), unsafe_allow_html=True)
+    st.stop()
+
+
+if not models_ready():
+    st.error(
+        "One or more checkpoints are missing from `saved_models/` or `weights/`. "
+        "See README.md for how to obtain them."
+    )
+    st.stop()
+
+work_dir = Path(tempfile.mkdtemp(prefix="deepfake_"))
+video_path = work_dir / f"input_{uploaded.name}"
+
+# Keep the last verdict on screen across reruns (tab clicks, downloads, ...)
+# as long as the same file is still uploaded.
+stored = st.session_state.get("df_last_result")
+if stored and stored.get("filename") != uploaded.name:
+    st.session_state.pop("df_last_result", None)
+    stored = None
+
+try:
+    video_path.write_bytes(uploaded.getbuffer())
+
+    c1, c2 = st.columns([2, 1], gap="large")
+    with c1:
+        st.markdown("##### Preview")
+        st.video(uploaded)
+    with c2:
+        st.markdown("##### Run")
+        st.caption(
+            f"{VIDEO_FRAME_COUNT} frames sampled across the clip, each "
+            "face-detected and cropped before scoring."
         )
+        run = st.button(" Run analysis", type="primary", use_container_width=True)
+        if stored:
+            st.caption(f" Last analyzed in {stored['elapsed_seconds']} s.")
+
+    if run:
+        try:
+            with st.spinner("Loading models (first run only)..."):
+                bundle = get_models()
+        except Exception as exc:  # noqa: BLE001
+            st.error("Could not load the models.")
+            st.code(str(exc))
+            st.stop()
+
+        try:
+            with st.spinner("Analyzing video frames, audio and building the report..."):
+                stored = analyze_video(
+                    video_path,
+                    bundle,
+                    work_dir=work_dir,
+                    filename=uploaded.name,
+                )
+            st.session_state["df_last_result"] = stored
+        except Exception as exc:  # noqa: BLE001
+            st.error("Analysis failed. Details below.")
+            st.exception(exc)
+            stored = None
+
+    if stored:
+        render_result(stored)
+
+finally:
+    shutil.rmtree(work_dir, ignore_errors=True)
+
+st.divider()
+st.caption(
+    "Deepfake analysis is probabilistic. Treat a REAL verdict as "
+    '"not detected", not as proof of authenticity.'
+)

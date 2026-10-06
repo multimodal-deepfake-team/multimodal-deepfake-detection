@@ -1,0 +1,75 @@
+VIDEO-ONLY RESNET18 EVALUATION
+==============================
+
+Device: cuda
+GPU: NVIDIA GeForce RTX 3050 6GB Laptop GPU
+Validation CSV: D:\Final\multimodal_deepfake_detection\processed\fusion_val.csv
+Model checkpoint: D:\Final\multimodal_deepfake_detection\saved_models\social_media_detector.pth
+Max frames per video: 4
+
+Samples evaluated : 34
+Accuracy          : 0.7941
+Macro F1          : 0.6296
+Weighted F1       : 0.7484
+
+Evaluated Classes:
+0 -> real
+4 -> voiceclone
+5 -> audio_video_fake
+
+Raw ResNet -> Fusion Label Mapping:
+1 (audio_video_fake) -> 5
+4 (real) -> 0
+5 (voiceclone) -> 4
+
+Classification Report:
+                  precision    recall  f1-score   support
+
+            real     1.0000    0.1250    0.2222         8
+      voiceclone     0.5000    1.0000    0.6667         7
+audio_video_fake     1.0000    1.0000    1.0000        19
+
+        accuracy                         0.7941        34
+       macro avg     0.8333    0.7083    0.6296        34
+    weighted avg     0.8971    0.7941    0.7484        34
+
+Confusion Matrix:
+[[ 1  7  0]
+ [ 0  7  0]
+ [ 0  0 19]]
+
+Per-video predictions:
+00015_fake | true=voiceclone | raw_pred=voiceclone | mapped_pred=voiceclone | confidence=0.7044
+00109_id00830_rfl3Teg9uew | true=audio_video_fake | raw_pred=audio_video_fake | mapped_pred=audio_video_fake | confidence=0.9991
+00071 | true=real | raw_pred=voiceclone | mapped_pred=voiceclone | confidence=0.9134
+00109_id00830_rfl3Teg9uew_id01544_wavtolip | true=audio_video_fake | raw_pred=audio_video_fake | mapped_pred=audio_video_fake | confidence=0.9912
+00109_id01207_mt129WTRSII | true=audio_video_fake | raw_pred=audio_video_fake | mapped_pred=audio_video_fake | confidence=1.0000
+00072 | true=real | raw_pred=voiceclone | mapped_pred=voiceclone | confidence=0.6715
+00109_id01717_wavtolip | true=audio_video_fake | raw_pred=audio_video_fake | mapped_pred=audio_video_fake | confidence=0.9997
+00005_fake | true=voiceclone | raw_pred=voiceclone | mapped_pred=voiceclone | confidence=0.9403
+00109_id01207_mt129WTRSII_id02316_wavtolip | true=audio_video_fake | raw_pred=audio_video_fake | mapped_pred=audio_video_fake | confidence=0.9997
+00010_id01207_wavtolip | true=audio_video_fake | raw_pred=audio_video_fake | mapped_pred=audio_video_fake | confidence=0.9840
+00109_id00476_wavtolip | true=audio_video_fake | raw_pred=audio_video_fake | mapped_pred=audio_video_fake | confidence=0.9999
+00109_10_id01076_wavtolip | true=audio_video_fake | raw_pred=audio_video_fake | mapped_pred=audio_video_fake | confidence=1.0000
+00005 | true=real | raw_pred=voiceclone | mapped_pred=voiceclone | confidence=0.6837
+00109_12_id01856_wavtolip | true=audio_video_fake | raw_pred=audio_video_fake | mapped_pred=audio_video_fake | confidence=1.0000
+00109_id00166_wavtolip | true=audio_video_fake | raw_pred=audio_video_fake | mapped_pred=audio_video_fake | confidence=0.9992
+00135_fake | true=voiceclone | raw_pred=voiceclone | mapped_pred=voiceclone | confidence=0.9637
+00109_10_id01179_wavtolip | true=audio_video_fake | raw_pred=audio_video_fake | mapped_pred=audio_video_fake | confidence=1.0000
+00109_7 | true=audio_video_fake | raw_pred=audio_video_fake | mapped_pred=audio_video_fake | confidence=0.9999
+00019_fake | true=voiceclone | raw_pred=voiceclone | mapped_pred=voiceclone | confidence=0.9850
+00044 | true=real | raw_pred=voiceclone | mapped_pred=voiceclone | confidence=0.6873
+00010_id01171_XSINMRoTb0E | true=audio_video_fake | raw_pred=audio_video_fake | mapped_pred=audio_video_fake | confidence=0.9982
+00109_4 | true=audio_video_fake | raw_pred=audio_video_fake | mapped_pred=audio_video_fake | confidence=0.9999
+00109_id01036_AohKaMtIHxA | true=audio_video_fake | raw_pred=audio_video_fake | mapped_pred=audio_video_fake | confidence=1.0000
+00109_9_id00076_wavtolip | true=audio_video_fake | raw_pred=audio_video_fake | mapped_pred=audio_video_fake | confidence=0.9994
+00071_fake | true=voiceclone | raw_pred=voiceclone | mapped_pred=voiceclone | confidence=0.9610
+00109_id01995_YUR9wTypwIo_id01691_wavtolip | true=audio_video_fake | raw_pred=audio_video_fake | mapped_pred=audio_video_fake | confidence=0.9829
+00053 | true=real | raw_pred=voiceclone | mapped_pred=voiceclone | confidence=0.8584
+00160 | true=real | raw_pred=real | mapped_pred=real | confidence=0.3652
+00017_fake | true=voiceclone | raw_pred=voiceclone | mapped_pred=voiceclone | confidence=0.9882
+00044_fake | true=voiceclone | raw_pred=voiceclone | mapped_pred=voiceclone | confidence=0.7907
+00109_10_id00476_wavtolip | true=audio_video_fake | raw_pred=audio_video_fake | mapped_pred=audio_video_fake | confidence=1.0000
+00001 | true=real | raw_pred=voiceclone | mapped_pred=voiceclone | confidence=0.9629
+00109_id00173_UHoMXLSjlDo | true=audio_video_fake | raw_pred=audio_video_fake | mapped_pred=audio_video_fake | confidence=0.9987
+00206 | true=real | raw_pred=voiceclone | mapped_pred=voiceclone | confidence=0.8016

@@ -1,0 +1,21 @@
+[theme]
+base = "dark"
+primaryColor = "#6366F1"
+backgroundColor = "#0B1120"
+secondaryBackgroundColor = "#131C31"
+textColor = "#E2E8F0"
+linkColor = "#818CF8"
+borderColor = "rgba(148,163,184,0.20)"
+showWidgetBorder = false
+
+[server]
+headless = true
+maxUploadSize = 512
+enableXsrfProtection = true
+
+[browser]
+gatherUsageStats = false
+
+[client]
+toolbarMode = "minimal"
+showErrorDetails = "full"

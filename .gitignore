@@ -1,31 +1,42 @@
-# Python
-venv/
+# ---------------- Python ----------------
 __pycache__/
-*.pyc
-*.pyo
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
 
-# Datasets (too large / licensed, do not commit)
+# ---------------- Virtual environments ----------------
+# NOTE: do not add bare `Scripts/`, `Lib/` or `Include/` here - gitignore is
+# case-insensitive on Windows and they would swallow the project's `scripts/`
+# package. The venv directories above are enough.
+venv/
+.venv/
+env/
+
+# ---------------- Datasets (too large / licensed) ----------------
 dataset/
 processed/
-debug_faces/
 
-# Trained model weights (too large for git)
+# ---------------- Trained weights ----------------
 saved_models/
 weights/
+*.pt
+*.pth
+*.pkl
 
-# Temp / OS files
+# ---------------- Scratch / debug artefacts ----------------
+debug_faces/
+_verify_tmp/
+*.log
 *.tmp
+*.wav
+/test_audio/
+
+# ---------------- Streamlit / Jupyter ----------------
+.ipynb_checkpoints/
+# keep .streamlit/config.toml (theme) committed, never the secrets
+.streamlit/secrets.toml
+
+# ---------------- OS ----------------
 .DS_Store
 Thumbs.db
-
-# Streamlit / Jupyter
-.streamlit/
-.ipynb_checkpoints/
-
-# Environment secrets (if any added later)
-.env
-venv311/
-
-Lib/
-Scripts/
-pyvenv.cfg

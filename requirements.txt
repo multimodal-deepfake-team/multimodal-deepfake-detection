@@ -1,31 +1,30 @@
+# ============================================================
+# Core inference
+# ============================================================
 torch
 torchvision
 torchaudio
+transformers
+ultralytics
 opencv-python
 pillow
-imageio
-scikit-image
-librosa
-soundfile
-ffmpeg-python
-retina-face
-mtcnn
-transformers
-accelerate
-sentencepiece
 numpy
 pandas
-scipy
 scikit-learn
-matplotlib
-seaborn
-grad-cam
-shap
+
+# ============================================================
+# Audio pipeline
+# ============================================================
+librosa
+soundfile
+
+# ============================================================
+# Dashboard
+# ============================================================
 streamlit
-reportlab
-fpdf2
+plotly
+
+# ============================================================
+# Utility
+# ============================================================
 tqdm
-pyyaml
-gdown
-requests
-ultralytics
