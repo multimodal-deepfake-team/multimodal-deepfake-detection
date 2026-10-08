@@ -32,14 +32,16 @@ Styling lives in `.streamlit/config.toml` (dark theme) plus `app/ui/theme.py` (c
 - Audio scored over several overlapping 4-second windows and averaged
 - Explainable forensic reports with per-frame, per-window and face-crop evidence
 - Analysis engine (`app/core/`) is **Streamlit-free**, so the same code powers the dashboard, batch mode and scripts
+- Leak-free evaluation protocol: video- and group-level splits, a leakage check script, video-level metrics and source-bias diagnostics (see [Evaluation Protocol](#evaluation-protocol-leak-free))
 
 ## Project Status
 
-- ✅ Core visual detection pipeline: trained, evaluated (95% validation accuracy), and deployed
-- ✅ CLI, dashboard, batch runner and metrics page: fully connected to the trained models
-- ⏸️ Known limitation: reduced accuracy on real-world/in-the-wild mobile video (see [Section 6, PROJECT_DOCUMENTATION.md](./PROJECT_DOCUMENTATION.md#6-known-limitation-cross-dataset-generalization-gap)) — DFDC dataset integration planned to address this
+- ✅ Core visual detection pipeline: trained and deployed. The original 95% validation accuracy was measured on a leaky image-level split; on a leak-free video-level split the 5-class model reaches **91.0%** (see [Results](#results))
+- ✅ CLI, dashboard, batch runner and metrics page: connected to the originally trained models (the new leak-free 5-class model `video_model_v3_best.pth` is not yet wired into the dashboard)
+- ✅ Leak-free split (`splits/v2.csv`), leakage check, source-wise accuracy, compression sweep and miss diagnostics
+- ⏸️ Known limitation: reduced accuracy on real-world/in-the-wild mobile video (see [Section 6, PROJECT_DOCUMENTATION.md](./PROJECT_DOCUMENTATION.md#6-known-limitation-cross-dataset-generalization-gap)). A cross-dataset evaluation on an in-the-wild benchmark is planned
 - ✅ Audio branch (Wav2Vec2): retrained on **video-domain** audio and wired into the dashboard — 87.8% on held-out videos (the original ASVspoof-trained head scored 26.8% there). Original checkpoint kept as `saved_models/audio_binary_small_asvspoof.pth`
-- ⏸️ Fusion model: trained but the dashboard intentionally shows video and audio independently (no weighted 60/40 blend)
+- ⏸️ Fusion model: trained but the dashboard intentionally shows video and audio independently (no weighted 60/40 blend). The fusion evaluation set (34 videos) is too small for strong claims
 
 ---
 
@@ -80,7 +82,8 @@ python detect_social_video.py <video_file.mp4>
 
 **Train**
 ```powershell
-python -m training.train_video            # 6-class video model
+python -m training.train_video            # original 6-class video model (leaky image-level split)
+python training\train_video_v3.py         # 5-class video model on the leak-free split (splits/v2.csv)
 python -m training.train_audio_v2         # audio head
 python -m training.train_fusion           # fusion head (optional)
 ```
@@ -96,6 +99,78 @@ python -m scripts.train_audio_video_domain    # retrains head, backs up old chec
 python -m scripts.verify_app                  # status combos, video, audio, report
 python -m scripts.evaluate_audio_on_videos    # audio accuracy on real video files
 ```
+
+---
+
+## Evaluation Protocol (leak-free)
+
+The original validation split was a random 80/20 split of face crops, so crops from the same video could land in both train and validation. We rebuilt the protocol:
+
+1. **Manifest** (`scripts/make_manifest.py`): one row per face crop with its video key, recovered from the crop filename.
+2. **Video- and group-level split** (`scripts/make_split_v2.py` → `splits/v2.csv`): ~71% train / 14% val / 14% test, stratified by class. Related FF++ clips (e.g. `008_990` and the source `008`) are linked, and FakeAVCeleb clips are grouped by speaker identity (`idXXXXX`), using union-find over identity tokens. Celeb-DF is grouped by video only, so some identity overlap may remain there.
+3. **Leakage check** (`scripts/check_leakage.py`): asserts zero overlap of video keys and groups between train, val and test.
+4. **Training** (`training/train_video_v3.py`): sampler weights computed from the train split only, checkpoint chosen by validation loss, test set evaluated once at the end.
+5. **Video-level metrics**: crop probabilities are averaged per video key; accuracy and macro-F1 are reported over videos.
+
+Changes to the data in v2: `voiceclone` was removed from the visual classifier (its video is real; it is an audio property), and 500 real FakeAVCeleb videos (`RealVideo-RealAudio`) were added to the `real` class so that "looks like FakeAVCeleb" is not a proxy for "fake".
+
+Diagnostic scripts in `scripts/`: `test_b_source.py` (accuracy by source dataset), `diagnose_misses.py`, `pair_check.py`, `agg_compare.py`, `crop_size_check.py`, `compression_sweep.py`.
+
+---
+
+## Results
+
+| Evaluation | Accuracy | Macro F1 |
+|---|---|---|
+| 6-class video model (image-level random split, **leaky**, 3,717 images) | 95.0% | 0.89 |
+| 6-class video model (video-level leak-free split, 238 test videos) | 83.6% | 0.72 |
+| 5-class video model (video-level leak-free split, 310 test videos) | **91.0%** | 0.81 |
+| Video-only on fusion labels (34 videos) | 79.4% | 0.63 |
+| Video + audio fusion (34 videos) | 73.5% | 0.69 |
+| Audio branch on held-out video audio (41 clips) | **87.8%** | — |
+
+### Evaluation note (leak-free split)
+
+The 95% figure was measured on an image-level random split, so crops from the same video could appear in both train and validation. On the leak-free video-level split the numbers are lower, which we consider the honest baseline. The 6-class and 5-class rows use different class sets, test sets and real data, so they are **not directly comparable**.
+
+### 5-class leak-free results (video level, 310 test videos)
+
+| Class | Test videos | Precision | Recall | F1 |
+|---|---|---|---|---|
+| ai_video | 88 | 0.966 | 0.966 | 0.966 |
+| audio_video_fake | 34 | 0.971 | 1.000 | 0.986 |
+| edited | 14 | 0.625 | 0.357 | 0.455 |
+| faceswap | 22 | 1.000 | 0.591 | 0.743 |
+| real | 152 | 0.873 | 0.954 | 0.912 |
+
+Caveats:
+
+- `edited` (14 videos) and `faceswap` (22 videos) have very small test sets; one video moves a score by 4–7 points.
+- Results are from a single seed, with no confidence intervals yet.
+- `edited` and `faceswap` are the weak classes: most misses are predicted as `real`.
+- The `edited` class mixes Face2Face and NeuralTextures crops under shared video keys (25 of 100 keys contain two crop sets), so its per-video numbers are a blend of both methods.
+- Source-wise accuracy (`scripts/test_b_source.py`) shows no obvious FakeAVCeleb shortcut for `real` (98.6% on FakeAVCeleb real vs 92.6% on the remaining real clips), but `audio_video_fake` (100%) has not been verified on an external dataset and its crops are noticeably darker than other classes. Treat it as unverified.
+
+### Compression robustness (crop-level degradation, 5-class model)
+
+| Condition | Video acc | Macro F1 | Real recall |
+|---|---|---|---|
+| clean | 0.910 | 0.812 | 0.954 |
+| JPEG 90 | 0.913 | 0.809 | 0.961 |
+| JPEG 70 | 0.906 | 0.764 | 0.974 |
+| JPEG 50 | 0.903 | 0.761 | 0.967 |
+| JPEG 30 | 0.900 | 0.753 | 0.954 |
+| downscale 0.5 + JPEG 50 | 0.868 | 0.714 | 0.934 |
+
+This degrades already-extracted crops; it is not a real platform re-encode (H.264, bitrate, frame rate). Per-class scores and the confusion matrix for the original 6-class model are rendered live on the **Model Metrics** page.
+
+---
+
+## Known Limitation
+
+The original 6-class model was validated at 95% accuracy on a leaky split drawn from the same distribution it was trained on (FaceForensics++, Celeb-DF, FakeAVCeleb — landscape, medium-shot, c40-compressed footage). Even on a leak-free split, `edited` and `faceswap` remain weak, and on in-the-wild vertical mobile video the model can label manipulated content as `real` with high confidence. This is a distribution-shift problem, not a code defect. See [Section 6, PROJECT_DOCUMENTATION.md](./PROJECT_DOCUMENTATION.md#6-known-limitation-cross-dataset-generalization-gap).
+
+A `REAL` verdict means **"not detected"** — never proof of authenticity.
 
 ---
 
@@ -132,12 +207,18 @@ multimodal_deepfake_detection/
 ├── models/                  # model architecture definitions
 ├── preprocessing/           # frame extraction, face cropping, audio extraction
 ├── training/                # training + evaluation entry points
-├── scripts/                 # dataset build, checkpoint training, verification
+│   ├── train_video.py       #   original 6-class (leaky split)
+│   └── train_video_v3.py    #   5-class on the leak-free split
+├── scripts/                 # dataset build, split, leakage check, diagnostics
+├── splits/                  # manifest.csv, v1.csv, v2.csv (committed)
 ├── utils/                   # dataset summary helper
 │
 ├── results/                 # evaluation reports (committed)
 │   ├── video_evaluation.txt
-│   └── 6class_video_confusion_matrix.txt
+│   ├── 6class_video_confusion_matrix.txt
+│   ├── v2_test_metrics.json
+│   ├── v3_test_metrics.json
+│   └── v3_compression_sweep.json
 │
 ├── saved_models/            # checkpoints                (gitignored)
 ├── weights/                 # YOLO face detector         (gitignored)
@@ -151,24 +232,13 @@ multimodal_deepfake_detection/
 
 ---
 
-## Results
+## Roadmap
 
-| Evaluation | Accuracy | Macro F1 |
-|---|---|---|
-| 6-class video model (held-out validation, 3,717 images) | **95.0%** | 0.89 |
-| Video-only on fusion labels (34 videos) | 79.4% | 0.63 |
-| Video + audio fusion (34 videos) | 73.5% | 0.69 |
-| Audio branch on held-out video audio (41 clips) | **87.8%** | — |
-
-Per-class validation scores and the full confusion matrix are rendered live on the **Model Metrics** page.
-
----
-
-## Known Limitation
-
-The 6-class model was validated at 95% accuracy **on data drawn from the same distribution it was trained on** (FaceForensics++, Celeb-DF, FakeAVCeleb — landscape, medium-shot, c40-compressed footage). On in-the-wild vertical mobile video it can label manipulated content as `real` with high confidence. This is a distribution-shift problem, not a code defect. See [Section 6, PROJECT_DOCUMENTATION.md](./PROJECT_DOCUMENTATION.md#6-known-limitation-cross-dataset-generalization-gap).
-
-A `REAL` verdict means **"not detected"** — never proof of authenticity.
+- Cross-dataset evaluation on an in-the-wild benchmark (evaluation only, never used for training)
+- Multi-seed runs and bootstrap confidence intervals
+- Method-wise `edited` split (Face2Face vs NeuralTextures) and more frames per video for weak classes
+- Real fusion training on labeled paired audio-video data, with audio-visual sync features
+- Calibration and an "uncertain" output for out-of-distribution video
 
 ---
 
