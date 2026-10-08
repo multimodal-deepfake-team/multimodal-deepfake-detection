@@ -1,0 +1,32 @@
+{
+  "clean": {
+    "video_acc": 0.91,
+    "macro_f1": 0.812,
+    "real_recall": 0.954
+  },
+  "jpeg90": {
+    "video_acc": 0.913,
+    "macro_f1": 0.809,
+    "real_recall": 0.961
+  },
+  "jpeg70": {
+    "video_acc": 0.906,
+    "macro_f1": 0.764,
+    "real_recall": 0.974
+  },
+  "jpeg50": {
+    "video_acc": 0.903,
+    "macro_f1": 0.761,
+    "real_recall": 0.967
+  },
+  "jpeg30": {
+    "video_acc": 0.9,
+    "macro_f1": 0.753,
+    "real_recall": 0.954
+  },
+  "down0.5+jpeg50": {
+    "video_acc": 0.868,
+    "macro_f1": 0.714,
+    "real_recall": 0.934
+  }
+}
