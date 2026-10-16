@@ -10,6 +10,7 @@ from typing import Any
 
 import streamlit as st
 
+from app.core.config import PROJECT_ROOT, SAVED_MODELS_DIR, WEIGHTS_DIR
 from app.core.models import ModelBundle, checkpoint_metadata, load_models
 
 
@@ -36,3 +37,26 @@ def get_model_info() -> dict[str, Any]:
 def models_ready() -> bool:
     """True when every checkpoint needed by the dashboard is present."""
     return all(checkpoint_metadata()["exists"].values())
+
+
+@st.cache_data(show_spinner=False)
+def missing_checkpoints() -> tuple[str, ...]:
+    """Repo-relative paths of every checkpoint the dashboard cannot find.
+
+    Empty in a healthy deployment: the three files are committed to the
+    repository, so a fresh clone - and a Streamlit Community Cloud build -
+    already has them. When the list is not empty the app explains exactly
+    which file is missing instead of failing later inside the pipeline.
+    """
+    info = checkpoint_metadata()
+    locations = {
+        "video": (info["video_checkpoint"], SAVED_MODELS_DIR),
+        "audio": (info["audio_checkpoint"], SAVED_MODELS_DIR),
+        "face": (info["face_detector"], WEIGHTS_DIR),
+    }
+
+    return tuple(
+        (directory / name).relative_to(PROJECT_ROOT).as_posix()
+        for key, (name, directory) in locations.items()
+        if not info["exists"][key]
+    )

@@ -24,8 +24,9 @@ def extract_audio_from_video(video_path: Path, wav_path: Path) -> tuple[bool, st
 
     if FFMPEG_EXE is None:
         return False, (
-            "FFmpeg was not found. Install it and/or set the FFMPEG_BINARY "
-            "environment variable to the full path of ffmpeg.exe."
+            "FFmpeg was not found on this machine. Install it and/or set the "
+            "FFMPEG_BINARY environment variable to the full path of the ffmpeg "
+            "binary (on Streamlit Community Cloud it comes from packages.txt)."
         )
 
     command = [

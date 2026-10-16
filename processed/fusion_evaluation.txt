@@ -1,0 +1,67 @@
+MULTIMODAL FUSION EVALUATION
+======================================================================
+
+Checkpoint: D:\Final\multimodal_deepfake_detection\saved_models\fusion_model_best.pth
+Checkpoint epoch: 13
+Checkpoint training validation accuracy: 0.7352941176470589
+Checkpoint training validation Macro-F1: 0.6869658119658121
+
+Samples evaluated: 34
+Accuracy: 0.735294
+Macro F1: 0.686966
+Weighted F1: 0.731995
+
+Classification Report
+----------------------------------------------------------------------
+                  precision    recall  f1-score   support
+
+            real       0.80      0.50      0.62         8
+      voiceclone       0.56      0.71      0.62         7
+audio_video_fake       0.80      0.84      0.82        19
+
+        accuracy                           0.74        34
+       macro avg       0.72      0.69      0.69        34
+    weighted avg       0.75      0.74      0.73        34
+
+Confusion Matrix
+----------------------------------------------------------------------
+[[ 4  2  2]
+ [ 0  5  2]
+ [ 1  2 16]]
+
+Per-sample predictions
+----------------------------------------------------------------------
+00015_fake	voiceclone	voiceclone
+00109_id00830_rfl3Teg9uew	audio_video_fake	audio_video_fake
+00071	real	audio_video_fake
+00109_id00830_rfl3Teg9uew_id01544_wavtolip	audio_video_fake	voiceclone
+00109_id01207_mt129WTRSII	audio_video_fake	audio_video_fake
+00072	real	audio_video_fake
+00109_id01717_wavtolip	audio_video_fake	audio_video_fake
+00005_fake	voiceclone	voiceclone
+00109_id01207_mt129WTRSII_id02316_wavtolip	audio_video_fake	voiceclone
+00010_id01207_wavtolip	audio_video_fake	audio_video_fake
+00109_id00476_wavtolip	audio_video_fake	audio_video_fake
+00109_10_id01076_wavtolip	audio_video_fake	audio_video_fake
+00005	real	real
+00109_12_id01856_wavtolip	audio_video_fake	audio_video_fake
+00109_id00166_wavtolip	audio_video_fake	audio_video_fake
+00135_fake	voiceclone	audio_video_fake
+00109_10_id01179_wavtolip	audio_video_fake	audio_video_fake
+00109_7	audio_video_fake	real
+00019_fake	voiceclone	voiceclone
+00044	real	voiceclone
+00010_id01171_XSINMRoTb0E	audio_video_fake	audio_video_fake
+00109_4	audio_video_fake	audio_video_fake
+00109_id01036_AohKaMtIHxA	audio_video_fake	audio_video_fake
+00109_9_id00076_wavtolip	audio_video_fake	audio_video_fake
+00071_fake	voiceclone	audio_video_fake
+00109_id01995_YUR9wTypwIo_id01691_wavtolip	audio_video_fake	audio_video_fake
+00053	real	real
+00160	real	voiceclone
+00017_fake	voiceclone	voiceclone
+00044_fake	voiceclone	voiceclone
+00109_10_id00476_wavtolip	audio_video_fake	audio_video_fake
+00001	real	real
+00109_id00173_UHoMXLSjlDo	audio_video_fake	audio_video_fake
+00206	real	real

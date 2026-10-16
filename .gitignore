@@ -15,14 +15,27 @@ env/
 
 # ---------------- Datasets (too large / licensed) ----------------
 dataset/
-processed/
+processed/*
+# fusion evaluation report is a text artefact the Model Metrics page reads,
+# so it is committed like everything else in results/
+!processed/fusion_evaluation.txt
 
 # ---------------- Trained weights ----------------
-saved_models/
-weights/
+# Everything is excluded by default (size/licensing), except the three
+# checkpoints the deployed dashboard cannot run without. Those are committed
+# on purpose so a fresh clone - and Streamlit Community Cloud - has them:
+#   saved_models/video_binary_small.pth   ~45 MB
+#   saved_models/audio_binary_small.pth    ~0.8 MB
+#   weights/yolov8n-face.pt                 ~6 MB
+saved_models/*
+weights/*
 *.pt
 *.pth
 *.pkl
+# negations must come last - a later rule wins in gitignore
+!saved_models/video_binary_small.pth
+!saved_models/audio_binary_small.pth
+!weights/yolov8n-face.pt
 
 # ---------------- Scratch / debug artefacts ----------------
 debug_faces/

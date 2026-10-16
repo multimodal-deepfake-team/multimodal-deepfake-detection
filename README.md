@@ -57,7 +57,12 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-**Note:** Dataset files, trained model weights and YOLO weights are excluded from git (size/licensing, see `.gitignore`). Contact a team member for `saved_models/social_media_detector.pth`, `saved_models/video_binary_small.pth`, `saved_models/audio_binary_small.pth` and `weights/yolov8n-face.pt`, or rebuild them from source following [PROJECT_DOCUMENTATION.md](./PROJECT_DOCUMENTATION.md#3-dataset).
+**Note:** the three checkpoints the dashboard needs **ship with the repo** — `saved_models/video_binary_small.pth`, `saved_models/audio_binary_small.pth` and `weights/yolov8n-face.pt` are committed on purpose (see `.gitignore`), so a fresh clone can run the app straight away. Everything else — datasets, the 6-class CLI model (`saved_models/social_media_detector.pth`), the leak-free v3 model, the fusion head — is still excluded from git (size/licensing). Contact a team member or rebuild those from source following [PROJECT_DOCUMENTATION.md](./PROJECT_DOCUMENTATION.md#3-dataset).
+
+> `requirements.txt` installs the **CPU** build of PyTorch on every platform so the same file works on Streamlit Community Cloud. If you have a GPU and want CUDA for training, swap it in afterwards with:
+> ```powershell
+> uv pip install --force-reinstall torch==2.14.0 torchvision==0.29.0 torchaudio==2.11.0 --index-url https://download.pytorch.org/whl/cu126
+> ```
 
 > **Run everything with the same interpreter** that has your dependencies. If `streamlit` on your PATH belongs to a different Python you get import errors such as `cannot import name 'Wav2Vec2Model' from 'transformers'`. Check with:
 > ```powershell
@@ -65,6 +70,36 @@ pip install -r requirements.txt
 > ```
 
 Audio extraction needs **ffmpeg**. It is discovered automatically from (1) the `FFMPEG_BINARY` environment variable, (2) `PATH`, (3) known install directories — see `app/core/config.py`.
+
+---
+
+## Deploy to Streamlit Community Cloud
+
+The repository is deployment-ready: push `main` and point Community Cloud at the entry point.
+
+1. Push the repository to GitHub (the three checkpoints are committed, so no extra upload step).
+2. Go to [share.streamlit.io](https://share.streamlit.io) → **Create app** → *“Yup, I have an app”* and fill in:
+   - **Repository:** `multimodal-deepfake-team/multimodal-deepfake-detection`
+   - **Branch:** `main`
+   - **Main file path:** `app/streamlit_app.py`
+3. Open **Advanced settings** and pick a **Python version** (`3.12`, `3.13` and `3.14` are all verified to resolve — the default 3.12 is fine). No secrets are required.
+4. **Deploy.** The first build installs the pinned dependencies; after that every push to `main` redeploys automatically.
+
+### What the deployment files do
+
+| File | Why it exists |
+|---|---|
+| `requirements.txt` | Pins every dependency to the versions the dashboard was verified on and adds `--extra-index-url https://download.pytorch.org/whl/cpu`, so the cloud build resolves `torch==2.14.0+cpu` (a CPU-only wheel) instead of a CUDA-enabled one. Resolution was checked with `uv` (Community Cloud's resolver) for Linux on Python 3.12/3.13/3.14. |
+| `packages.txt` | apt packages for the non-Python dependencies: `ffmpeg` (audio branch) plus `libgl1` / `libglib2.0-0` / `libsm6` / `libxext6` / `libxrender1`, because ultralytics pulls the GUI build of `opencv-python` in next to the headless one and its `cv2` module needs libGL at import time. |
+| `saved_models/*.pth`, `weights/yolov8n-face.pt` | The runtime checkpoints (≈51 MB total, well under GitHub's 100 MB per-file limit). `.gitignore` carries explicit `!` carve-outs for exactly these three files; every other checkpoint stays ignored. |
+| `processed/fusion_evaluation.txt` | A text report the **Model Metrics** page reads. It is committed like the artefacts in `results/`. |
+
+### Runtime behaviour in the cloud
+
+- The runtime is CPU-only with roughly 1–3 GB of RAM, so a 10-second clip takes on the order of 20–60 s to score — the app shows a progress spinner, not a hang.
+- The **first analysis** downloads `facebook/wav2vec2-base` (≈360 MB) from the Hugging Face Hub into the container's cache (~1 min). It is not written to the repository and is reused by later analyses and sessions.
+- Uploaded videos are processed in a temporary directory and deleted immediately after scoring; nothing is persisted.
+- If a checkpoint is ever missing, the Analyze and Batch pages name the exact file instead of failing deep inside the pipeline, and **Model Metrics** / **About** keep working.
 
 ---
 

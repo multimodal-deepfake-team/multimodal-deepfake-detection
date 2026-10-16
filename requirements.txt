@@ -1,22 +1,35 @@
-# Core inference
-torch
-torchvision
-torchaudio
-transformers
-ultralytics
-opencv-python-headless
-pillow
-numpy
-pandas
-scikit-learn
+# ---------------------------------------------------------------------------
+# Python dependencies for the dashboard (Streamlit Community Cloud + local).
+#
+# Community Cloud runs on Linux with no GPU. The extra index below makes the
+# resolver pick the dedicated CPU builds (torch ends up as 2.14.0+cpu), so the
+# install stays small and predictable on a GPU-less runtime. Every other
+# package still resolves from PyPI.
+# ---------------------------------------------------------------------------
+--extra-index-url https://download.pytorch.org/whl/cpu
 
-# Audio pipeline
-librosa
-soundfile
+# Core inference (pinned to the versions the dashboard was verified on)
+torch==2.14.0
+torchvision==0.29.0
+torchaudio==2.11.0
+transformers==5.17.0
+ultralytics==8.4.161
+# headless OpenCV: the cloud image has no libGL (ultralytics also pulls the
+# GUI build in, which is why packages.txt ships libgl1 as a fallback)
+opencv-python-headless==5.0.0.93
+pillow==12.3.0
+numpy==2.5.2
+pandas==3.0.6
+scikit-learn==1.9.1
+
+# Audio pipeline (ffmpeg itself comes from packages.txt)
+librosa==1.0.0
+soundfile==0.14.0
 
 # Dashboard
-streamlit
-plotly
+streamlit==1.64.0
+plotly==7.1.0
 
-# Utility
+# Utility (unpinned on purpose: the PyTorch CPU index hosts an older tqdm and
+# Community Cloud's resolver (uv) locks to the first index that has a package)
 tqdm

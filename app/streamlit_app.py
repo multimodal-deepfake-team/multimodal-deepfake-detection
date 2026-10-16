@@ -39,7 +39,7 @@ from app.core.config import (  # noqa: E402
 from app.ui import inject_theme  # noqa: E402
 from app.ui.components import render_result  # noqa: E402
 from app.ui.sidebar import render_sidebar  # noqa: E402
-from app.ui.state import get_models, models_ready  # noqa: E402
+from app.ui.state import get_models, missing_checkpoints  # noqa: E402
 from app.ui.theme import kpi  # noqa: E402
 
 inject_theme()
@@ -77,10 +77,18 @@ if uploaded is None:
     st.stop()
 
 
-if not models_ready():
+missing = missing_checkpoints()
+if missing:
     st.error(
-        "One or more checkpoints are missing from `saved_models/` or `weights/`. "
-        "See README.md for how to obtain them."
+        "Analysis is disabled because "
+        + ", ".join(f"`{path}`" for path in missing)
+        + " is/are missing. These checkpoints are committed to the repository, "
+        "so a fresh clone or a deployed app already has them - if they are "
+        "not there, pull the latest `main` branch (see README.md)."
+    )
+    st.info(
+        "**Model Metrics** and **About** still work without the weights - "
+        "open them from the sidebar."
     )
     st.stop()
 

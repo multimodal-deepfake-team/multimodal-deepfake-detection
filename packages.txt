@@ -1,0 +1,17 @@
+# External (apt-get) dependencies for the Streamlit Community Cloud runtime.
+# Community Cloud runs on Debian, so anything that is not a Python package
+# has to be listed here - one package per line.
+
+# Audio pipeline: app/core/audio.py shells out to ffmpeg to pull a 16 kHz
+# mono WAV track out of an uploaded video.
+ffmpeg
+
+# OpenCV: requirements.txt installs the headless build, but ultralytics (the
+# YOLOv8 face detector) also pulls in the GUI build of opencv-python, whose
+# cv2 module needs libGL/glib at import time. These shared libraries are a
+# few hundred KB and make the import work no matter which build wins.
+libgl1
+libglib2.0-0
+libsm6
+libxext6
+libxrender1
